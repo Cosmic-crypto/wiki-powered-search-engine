@@ -20,22 +20,52 @@ def wiki_scrape(query: str, start: int = 0, end: int = 3) -> bool:
         return False
 
     soup = BeautifulSoup(response.text, "html.parser")
-    page = soup.find_all(["p", "h1", "h2", "h3"])
 
+    # Handle disambiguation or “may refer to” pages
+    if "may refer to" in response.text or "disambiguation" in response.text.lower():
+        print(f"\n⚠️ The term '{query}' refers to multiple topics.\n")
+
+        disambig_links = []
+        for li in soup.select("div.mw-parser-output ul li a[href]"):
+            href = li["href"]
+            if href.startswith("/wiki/") and not ":" in href:  # Skip meta links
+                title = li.get_text(strip=True)
+                disambig_links.append((title, "https://wikipedia.org" + href))
+
+        if not disambig_links:
+            print("No links found on this disambiguation page.")
+            return False
+
+        for i, (title, _) in enumerate(disambig_links[:15], start=1):
+            print(f"{i}. {title}")
+
+        choice = input("\nEnter number to open that topic (default 1): ").strip()
+        if not choice.isdigit():
+            choice = 1
+        else:
+            choice = int(choice)
+
+        choice = max(1, min(choice, len(disambig_links)))
+        url = disambig_links[choice - 1][1]
+
+        # Re-fetch the chosen article
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+    # Extract readable content
+    page = soup.find_all(["p", "h1", "h2", "h3"])
     if not page:
         print("⚠️ No readable content found.")
         return False
 
-    # Limit end to length of paragraphs
     end = min(end, len(page))
-
     for data in page[start:end]:
-        text = p.get_text(strip=True)
+        text = data.get_text(strip=True)
         if text:
             print(text)
             print()
 
-    return end < len(paragraphs)  # Return True if there’s more content left
+    return end < len(page)  # True if there’s more content left
 
 
 def search_engine():
