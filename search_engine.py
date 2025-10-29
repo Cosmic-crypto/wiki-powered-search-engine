@@ -20,16 +20,16 @@ def wiki_scrape(query: str, start: int = 0, end: int = 3) -> bool:
         return False
 
     soup = BeautifulSoup(response.text, "html.parser")
-    paragraphs = soup.find_all("p")
+    page = soup.find_all(["p", "h1", "h2", "h3"])
 
-    if not paragraphs:
+    if not page:
         print("⚠️ No readable content found.")
         return False
 
     # Limit end to length of paragraphs
-    end = min(end, len(paragraphs))
+    end = min(end, len(page))
 
-    for p in paragraphs[start:end]:
+    for data in page[start:end]:
         text = p.get_text(strip=True)
         if text:
             print(text)
